@@ -2,4 +2,4 @@
 
 Learning many physical interactions and dynamic motions.
 
-Future works: to simulate dynamic jumpings.
+Future works: to simulate dynamic jumping.

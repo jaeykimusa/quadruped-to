@@ -29,9 +29,38 @@ cos_theta = casadi.cos(theta)
 
 
 # Mass matrix
-M11 = m_cart + m_pole
-MM12 = m_pole * l * cos_theta
-M21 = m_pole * l * cos_theta
-M22 = m_pole * l**2
+M_11 = m_cart + m_pole # total mass
+M_12 = m_pole * l * cos_theta # coupling term to link the cart's horizontal motion to the pole's angular motion
+M_21 = m_pole * l * cos_theta 
+M_22 = m_pole * l**2 # moment of inertia of the pole around its pivot point
 
+# Nonlinear terms
+C_1 = -m_pole * l * dtheta**2 * sin_theta # Centrifugal/Coriolis force term
+C_2 = m_pole * g * l * sin_theta # gravity term pulling downward
+
+det = M_11 * M_22 - M_12 * M_21
+M_11_inv = M_22 / det
+M_12_inv = -M_12 / det
+M_21_inv = -M_21 / det
+M_22_inv = M_11 / det
+
+# Acceleration equations
+x_ddot = M_11_inv * (F - C_1) + M_12_inv * -1 * C_2
+theta_ddot = M_21_inv * (F - C_1) + M_22_inv * -1 * C_2
+
+# Arbitrary-Body Algorithm function
+aba_fn = casadi.Function("aba_fn", [cq, cq_dot, cu], [casadi.vertcat(x_ddot, theta_ddot)])
+
+# Euler integrator
+def euler_integrate(q, v, u):
+    q_next = q + v * dt
+    v_next = v + aba_fn(q, v, u) * dt
+    return q_next, v_next
+
+# optimization
+opti = casadi.Opti()
+
+Q = opti.variable(nq, N + 1)
+V = opti.variable(nq_dot, N + 1)
+U = opti.variable(1, N)
 

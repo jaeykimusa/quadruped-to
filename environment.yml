@@ -1,0 +1,14 @@
+name: py312
+channels:
+  - conda-forge
+dependencies:
+  - python=3.12
+  - numpy
+  - matplotlib
+  - ipython
+  - jupyter
+  - ca-certificates
+  - openssl
+  - ffmpeg
+  - certifi
+prefix: /Users/jaeykim/miniforge3/envs/py312

@@ -1,0 +1,5 @@
+# Ignore archived/trashed code.
+archive/
+
+# Protect saved output figures.
+outputs/

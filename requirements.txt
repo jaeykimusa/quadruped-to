@@ -1,5 +1,7 @@
-numpy
-matplotlib
-casadi
-ipython
-jupyter
+casadi==3.7.0
+cvxpy==1.6.4
+ipython==8.12.3
+matplotlib==3.10.1
+numpy==2.2.5
+scipy==1.15.2
+sympy==1.13.3

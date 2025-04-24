@@ -14,13 +14,19 @@ nu = 8 # 4 ground reaction forces + 4 joint velocities
 g = 9.81
 mu = 0.8 # default coefficient of friction for general simulations
 
-# User preferences
+# User preferences for sim
 trajectory_line = True
-fixed_ground = False
+fixed_ground = True
 grf = True
-show_grf_output = True
 timer = True
-save_gifs = False
+
+# User preferences for output
+show_grf_output = False
+show_pitch_angle_over_time_plot = False
+
+# User preferences for downloads
+save_gifs = True
+
 
 
 # Physical parameters
@@ -255,17 +261,6 @@ class QuadrupedSimulator:
         this.ax.set_xlim(-2.0, 4.5)
         this.ax.set_ylim(-1.0, 4.0)
 
-        # Draw plot elements
-        # (this.com_plot,) = this.ax.plot([], [], "g", markersize=3, label="CoM")
-        # (this.shoulder_plots,) = this.ax.plot([], [], "bo", markersize=3, label="Shoulders")
-        # (this.knee_plots,) = this.ax.plot([], [], "bo", markersize=3, label="Knees")
-        # (this.ankle_plots,) = this.ax.plot([], [], "bo", markersize=3, label="Ankles")
-        # (this.link_lines_front,) = this.ax.plot([], [], "#00FF00", linewidth=2)
-        # (this.link_lines_rear,) = this.ax.plot([], [], "#00FF00", linewidth=2)
-        # (this.force_lines_front,) = this.ax.plot([], [], "r-", linewidth=2)
-        # (this.force_lines_rear,) = this.ax.plot([], [], "r-", linewidth=2)
-        # (this.q_trajectory,) = this.ax.plot([], [], "k--", lw=1, alpha=0.5)
-
         # Rectangle for body
         this.body_patch = patches.Polygon([[0, 0], [0, 0], [0, 0], [0, 0]], closed=True, color="#5FB257", alpha=0.5)
         this.ax.add_patch(this.body_patch)
@@ -352,10 +347,12 @@ class QuadrupedSimulator:
             [fk.front_shoulder_x, fk.rear_shoulder_x],
             [fk.front_shoulder_y, fk.rear_shoulder_y]
         )
+
         this.knee_plots.set_data(
             [fk.front_knee_x, fk.rear_knee_x],
             [fk.front_knee_y, fk.rear_knee_y]
         )
+
         this.ankle_plots.set_data(
             [fk.front_ankle_x, fk.rear_ankle_x],
             [fk.front_ankle_y, fk.rear_ankle_y]
@@ -365,10 +362,12 @@ class QuadrupedSimulator:
             [fk.front_shoulder_x, fk.front_knee_x, fk.front_ankle_x],
             [fk.front_shoulder_y, fk.front_knee_y, fk.front_ankle_y]
         )
+
         this.link_lines_rear.set_data(
             [fk.rear_shoulder_x, fk.rear_knee_x, fk.rear_ankle_x],
             [fk.rear_shoulder_y, fk.rear_knee_y, fk.rear_ankle_y]
         )
+
         if u is not None:
 
             force_scale = 1/300
@@ -379,6 +378,7 @@ class QuadrupedSimulator:
                     [fk.front_ankle_x, fk.front_ankle_x + GRF1_x],
                     [fk.front_ankle_y, fk.front_ankle_y + GRF1_y]
                 )
+
                 this.force_lines_rear.set_data(
                     [fk.rear_ankle_x, fk.rear_ankle_x + GRF2_x],
                     [fk.rear_ankle_y, fk.rear_ankle_y + GRF2_y]
@@ -405,14 +405,6 @@ v_initial = np.array([0, 0, 0])
 q_final = np.array([2.5, 0.5, 0, -1, 1.4, -1, +1.4])
 v_final = np.array([0, 0, 0])
 
-# Backflip
-# q_final = np.array([1.7, 1.0, 2 * np.pi, -1, 1.4, -1, +1.4])
-# v_final = np.array([0, 0, 0])
-
-
-# visualizer = QuadrupedSimulator(L, leg_length)
-# visualizer.set_data(q_initial)
-# plt.show()
 
 q = ca.SX.sym("q", nq)
 v = ca.SX.sym("v", nv)
@@ -573,6 +565,7 @@ def add_dynamics_constraint(opti, Q, V, U, k, get_next_state_func):
     opti.subject_to(Q[:, k + 1] == q_next)
     opti.subject_to(V[:, k + 1] == v_next)
 
+
 def apply_joint_limits(opti, q_angles_diff, lower_bounds, upper_bounds):
     for i in range(q_angles_diff.shape[0]):
         opti.subject_to(q_angles_diff[i] >= lower_bounds[i])
@@ -692,12 +685,15 @@ def initial_guess(opti, Q, V, U, q_intial, q_final, v_initial, v_final, m, g, N,
         opti.set_initial(U[6, i], 0) # dtheta3
         opti.set_initial(U[7, i], 0) # dtheta4
 
+
 # Solve to using ipopt
 initial_guess(opti, Q, V, U, q_initial, q_final, v_initial, v_final, m, g, N, is_contact)
 opti.solver("ipopt")
 U_sol = opti.solve().value(U)
 Q_sol = opti.solve().value(Q)
 
+
+# Outputs for user preferences
 
 # Output for the ground reaction forces
 if show_grf_output:
@@ -713,10 +709,10 @@ if show_grf_output:
         print(f"Time: {t:0.3f}s - F1x: {F1x: .3f}N, F1y: {F1y: .3f}N, F2x: {F2x: .3f}N, F2y: {F2y: .3f}N")
 
 
+# Simulation
+
 visualizer = QuadrupedSimulator(L, leg_length)
 visualizer.set_data(Q_sol[:, -1], None, Q_sol[:2, :-1])
-# plt.show()
-
 
 def animate(i):
     t = i * dt
@@ -724,12 +720,38 @@ def animate(i):
     return (visualizer.ax,)
 
 
-anim = animation.FuncAnimation(visualizer.fig, animate, frames=N, interval=50, blit=False)
-# plt.close()
+real_duration = N * dt # E.g., 100 * 0.02 = 2.0 seconds
+fps = int(1 / dt) # E.g., 1 / 0.02 = 50 FPS
+interval_ms = dt * 1000 # 0.02 * 1000 = 20 milliseconds
 
-# html = HTML(anim.to_jshtml())
-# display(html)
+anim = animation.FuncAnimation(
+    visualizer.fig, 
+    animate, 
+    frames=N, 
+    interval=interval_ms, 
+    blit=False
+)
+
+
+if show_pitch_angle_over_time_plot:
+    x_time_array = np.linspace(0, dt * Q_sol.shape[1], Q_sol.shape[1])
+    y_pitch_angle = np.rad2deg(Q_sol[2, :])
+
+    plt.figure(figsize=(8, 4))
+    plt.plot(x_time_array, y_pitch_angle, label='Pitch Angle (rad)', color='blue')
+    plt.title("Pitch Angle Over Time")
+    plt.xlabel("Time (s)")
+    plt.ylabel("Pitch Angle (deg)")
+    plt.grid(True)
+    plt.legend()
+    plt.tight_layout()
+    plt.show()
+
+    # plt.savefig("location/title.png")
+
+
 plt.show()
 
+
 if save_gifs:
-    anim.save("to_grf.gif")
+    anim.save("../assets/sim_gifs/to_jumping_sim_py_test.gif", writer="pillow", fps=fps)

@@ -1,3 +1,5 @@
+from collections import namedtuple
+
 import casadi as ca
 from matplotlib import patches
 import matplotlib.pyplot as plt
@@ -23,7 +25,7 @@ show_grf_output = False
 show_pitch_angle_over_time_plot = False
 
 # User preferences for downloads
-save_gifs = True
+save_gifs = False
 
 
 
@@ -33,7 +35,127 @@ L = 1.1  # body length (m)
 h = 0.1 # body heigh (m) - ideally 0.2
 I_z = 1 / 12 * m * (L**2 + h**2)  # moment of inertia for rectangular body around the z-axis 
 
-leg_length = 0.3  # m - ideally 0.3-0.35
+
+leg_length = 0.4  # m - ideally 0.3-0.35
+
+ForwardKinematicsPosition = namedtuple(
+    "ForwardKinematicsPosition",
+    [
+        "CoM_x",
+        "CoM_y",
+        "front_shoulder_x",
+        "front_shoulder_y",
+        "front_knee_x",
+        "front_knee_y",
+        "front_ankle_x",
+        "front_ankle_y",
+        "rear_shoulder_x",
+        "rear_shoulder_y",
+        "rear_knee_x",
+        "rear_knee_y",
+        "rear_ankle_x",
+        "rear_ankle_y",
+    ], 
+) 
+
+
+def cos(theta):
+    return np.cos(theta)
+
+
+def sin(theta):
+    return np.sin(theta)
+
+def pi():
+    return np.pi
+
+def forward_kinematics(q):
+    """
+    Computes the 2D forward kinematics for a planar quadruped robot.
+
+    Given the configuration vector `q`, this function calculates the positions
+    of the shoulder, knee, and ankle joints for both the front and rear legs,
+    based on the body position, orientation, and joint angles.
+
+    Parameters:
+    -----------
+    q : array-like (length = 7)
+        The configuration vector representing the robot's pose:
+        q[0] = CoM_x      # Center of mass x-position
+        q[1] = CoM_y      # Center of mass y-position
+        q[2] = phi        # Orientation angle of the body
+        q[3] = q_front_1  # Front leg upper joint angle
+        q[4] = q_front_2  # Front leg lower joint angle
+        q[5] = q_rear_1   # Rear leg upper joint angle
+        q[6] = q_rear_2   # Rear leg lower joint angle
+
+    Returns:
+    --------
+    ForwardKinematicsPosition
+        A data object containing:
+        - CoM_x, CoM_y
+        - front_shoulder_x, front_shoulder_y
+        - front_knee_x, front_knee_y
+        - front_ankle_x, front_ankle_y
+        - rear_shoulder_x, rear_shoulder_y
+        - rear_knee_x, rear_knee_y
+        - rear_ankle_x, rear_ankle_y
+
+    Notes:
+    ------
+    This function assumes a 2-link leg model (hip and knee) for each of the front and rear legs.
+    The body orientation phi defines the rotation of the body in world frame.
+    Each leg is offset from the center of mass by ±L/2 along the body axis.
+    """
+
+    joint_positions = dict()
+    joint_positions["CoM_x"] = q[0]
+    joint_positions["CoM_y"] = q[1]
+
+    phi = q[2]
+
+    # Front leg
+    theta1_front = q[3]
+    theta2_front = q[4]
+
+    front_shoulder_x = joint_positions["CoM_x"] + L / 2 * cos(phi)
+    front_shoulder_y = joint_positions["CoM_y"] + L / 2 * sin(phi)
+
+    front_knee_x = front_shoulder_x + leg_length * cos(phi - pi() / 2 + theta1_front)
+    front_knee_y = front_shoulder_y + leg_length * sin(phi - pi() / 2 + theta1_front)
+
+    front_ankle_x = front_knee_x + leg_length * cos(phi - pi() / 2 + theta1_front + theta2_front)
+    front_ankle_y = front_knee_y + leg_length * sin(phi - pi() / 2 + theta1_front + theta2_front)
+
+    joint_positions["front_shoulder_x"] = front_shoulder_x
+    joint_positions["front_shoulder_y"] = front_shoulder_y
+    joint_positions["front_knee_x"] = front_knee_x
+    joint_positions["front_knee_y"] = front_knee_y
+    joint_positions["front_ankle_x"] = front_ankle_x
+    joint_positions["front_ankle_y"] = front_ankle_y
+
+    # Rear leg
+    theta1_rear = q[5]
+    theta2_rear = q[6]
+
+    rear_shoulder_x = joint_positions["CoM_x"] + -L / 2 * cos(phi)
+    rear_shoulder_y = joint_positions["CoM_y"] + -L / 2 * sin(phi)
+
+    rear_knee_x = rear_shoulder_x + leg_length * cos(phi - pi() / 2 + theta1_rear)
+    rear_knee_y = rear_shoulder_y + leg_length * sin(phi - pi() / 2 + theta1_rear)
+
+    rear_ankle_x = rear_knee_x + leg_length * cos(phi - pi() / 2 + theta1_rear + theta2_rear)
+    rear_ankle_y = rear_knee_y + leg_length * sin(phi - pi() / 2 + theta1_rear + theta2_rear)
+
+    joint_positions["rear_shoulder_x"] = rear_shoulder_x
+    joint_positions["rear_shoulder_y"] = rear_shoulder_y
+    joint_positions["rear_knee_x"] = rear_knee_x
+    joint_positions["rear_knee_y"] = rear_knee_y
+    joint_positions["rear_ankle_x"] = rear_ankle_x
+    joint_positions["rear_ankle_y"] = rear_ankle_y
+
+    return ForwardKinematicsPosition(**joint_positions)
+
 
 def euler_integrate(q, v, u, dt):
     """
@@ -525,8 +647,8 @@ for k in range(N - 1):
     q_angles_default = q_initial[3:]
     q_angles_diff = q_angles - q_angles_default
 
-    lower_bounds = [-pi/2] * 4
-    uppder_bounds = [pi/2] * 4
+    lower_bounds = [-pi()/2] * 4
+    uppder_bounds = [pi()/2] * 4
     apply_joint_limits(opti, q_angles_diff, lower_bounds, uppder_bounds)
 
     cost += JOINT_ANGLE_PENALTY_WEIGHT * ca.dot(q_angles_diff, q_angles_diff)

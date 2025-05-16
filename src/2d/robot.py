@@ -4,21 +4,40 @@
 import numpy as np
 
 
-# Physical constants
-# Physical parameters
-m = 32.7  # kg boston dynamic's spot
-L = 1.1  # body length (m)
-h = 0.1 # body heigh (m) - ideally 0.2
-I_z = 1 / 12 * m * (L**2 + h**2)  # moment of inertia for rectangular body around the z-axis 
-leg_length = 0.4  # m - ideally 0.3-0.35
+ROBOT_MASS = 32.7 
+ROBOT_BODY_LENGTH = 1.1
+ROBOT_BODY_HEIGHT = 0.1
+ROBOT_LEG_LENGTH = 0.4
 
 
-# friction
-g = 9.81
-mu = 0.8 # default coefficient of friction
+class Robot:
+    def __init__(self, m, L, h, l_length):
+        
+        # Physical parameters
+        self.m = m # kg boston dynamic's spot
+        self.L = L # body length (m)
+        self.h = h # body heigh (m) - ideally 0.2
+        self.I_z = 1 / 12 * m * (L**2 + h**2)  # moment of inertia for rectangular body around the z-axis 
+        self.leg_length = l_length # m - ideally 0.3-0.35
 
 
-# dimensions
-n_q = 7 # 7 dof
-n_v = 3 # spatial velocity
-n_u = 8 # 4 ground reaction forces + 4 joint velocities
+        # friction
+        self.g = 9.81
+        self.mu = 0.8 # default coSfficient of friction
+
+
+        # dimensions
+        self.n_q = 7 # 7 dof
+        self.n_v = 3 # spatial velocity
+        self.n_u = 8 # 4 ground reaction forces + 4 joint velocities
+    
+    def get_m(self):
+        return self.m
+    
+    def get_leg_length(self):
+        return self.leg_length
+    
+    def get_L(self):
+        return self.L
+
+robot = Robot(ROBOT_MASS, ROBOT_BODY_LENGTH, ROBOT_BODY_HEIGHT, ROBOT_LEG_LENGTH)

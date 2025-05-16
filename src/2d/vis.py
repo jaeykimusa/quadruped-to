@@ -5,60 +5,62 @@ from matplotlib import patches
 import matplotlib.pyplot as plt
 import numpy as np
 from kinematics import forward_kinematics
-from robot import h, L, leg_length
+from robot import Robot, robot
 
 
 class QuadrupedSimulator:
-    def __init__(this, L, leg_length, figax=None):
-        this.L = L
-        this.leg_length = leg_length
-        this.h = h
+    def __init__(self, robot, figax=None):
+        # self.L = L
+        # self.leg_length = leg_length
+        # self.h = h
+
+        self.robot = robot
 
         # Initialize the plot and axis
         if figax is None:
-            this.fig, this.ax = plt.subplots()
+            self.fig, self.ax = plt.subplots()
         else:
-            this.fig, this.ax = figax
+            self.fig, self.ax = figax
         
         # Set plot appearance such size and orientn.
-        this.ax.set_aspect("equal")
-        this.ax.set_xlim(-2.0, 4.5)
-        this.ax.set_ylim(-1.0, 4.0)
+        self.ax.set_aspect("equal")
+        self.ax.set_xlim(-2.0, 4.5)
+        self.ax.set_ylim(-1.0, 4.0)
 
         # Rectangle for body
-        this.body_patch = patches.Polygon([[0, 0], [0, 0], [0, 0], [0, 0]], closed=True, color="#5FB257", alpha=0.5)
-        this.ax.add_patch(this.body_patch)
+        self.body_patch = patches.Polygon([[0, 0], [0, 0], [0, 0], [0, 0]], closed=True, color="#5FB257", alpha=0.5)
+        self.ax.add_patch(self.body_patch)
 
         # CoM marker
-        (this.com_plot,) = this.ax.plot([], [], "ko", markersize=3, label="CoM")
+        (self.com_plot,) = self.ax.plot([], [], "ko", markersize=3, label="CoM")
 
         # Joint markers
-        (this.shoulder_plots,) = this.ax.plot([], [], "o", markersize=3, markerfacecolor='white', markeredgecolor='blue')
-        (this.knee_plots,) = this.ax.plot([], [], "o", markersize=3, markerfacecolor='white', markeredgecolor='blue')
-        (this.ankle_plots,) = this.ax.plot([], [], "o", markersize=3, markerfacecolor='white', markeredgecolor='blue')
+        (self.shoulder_plots,) = self.ax.plot([], [], "o", markersize=3, markerfacecolor='white', markeredgecolor='blue')
+        (self.knee_plots,) = self.ax.plot([], [], "o", markersize=3, markerfacecolor='white', markeredgecolor='blue')
+        (self.ankle_plots,) = self.ax.plot([], [], "o", markersize=3, markerfacecolor='white', markeredgecolor='blue')
 
         # Leg lines
-        (this.link_lines_front,) = this.ax.plot([], [], "k-", linewidth=2)
-        (this.link_lines_rear,) = this.ax.plot([], [], "k-", linewidth=2)
+        (self.link_lines_front,) = self.ax.plot([], [], "k-", linewidth=2)
+        (self.link_lines_rear,) = self.ax.plot([], [], "k-", linewidth=2)
 
         # # GRFs
         # if grf:
-        #     (this.force_lines_front,) = this.ax.plot([], [], "r-", linewidth=1)
-        #     (this.force_lines_rear,) = this.ax.plot([], [], "r-", linewidth=1)
+        #     (self.force_lines_front,) = self.ax.plot([], [], "r-", linewidth=1)
+        #     (self.force_lines_rear,) = self.ax.plot([], [], "r-", linewidth=1)
 
         # # Trajectory line
         # if trajectory_line:
-        #     (this.q_trajectory,) = this.ax.plot([], [], "k--", lw=1, alpha=0.5)
+        #     (self.q_trajectory,) = self.ax.plot([], [], "k--", lw=1, alpha=0.5)
 
         # Draw ground line
-        this.ax.plot([-3.0, 5.0], [0, 0], "k-", linewidth=1)
+        self.ax.plot([-3.0, 5.0], [0, 0], "k-", linewidth=1)
 
         # # Timer
         # if timer:
-        #     this.timer_text = this.ax.text(
+        #     self.timer_text = self.ax.text(
         #         0.5, 1.02,                  # x and y in axis coordinates (top-center, a bit above)
         #         "Time: 0.00 s",             # Initial text
-        #         transform=this.ax.transAxes,
+        #         transform=self.ax.transAxes,
         #         ha="center", va="bottom", fontsize=10, color="black", fontweight="bold"
         #     )
 
@@ -69,11 +71,11 @@ class QuadrupedSimulator:
         #     length = 0.2
         #     x_vals = np.arange(x_start, x_end, spacing)
         #     for x in x_vals:
-        #         this.ax.plot([x + length, x], [-0.01, -0.05 - length], "k-", linewidth=1)
+        #         self.ax.plot([x + length, x], [-0.01, -0.05 - length], "k-", linewidth=1)
 
-    def set_data(this, q, u=None, q_trajectory=None, time=None):
+    def set_data(self, q, u=None, q_trajectory=None, time=None):
 
-        # This manual calibration of this local dependency is no longer used due to redundancy reason.
+        # self manual calibration of self local dependency is no longer used due to redundancy reason.
         # Robot coordinates
         # CoM_x, CoM_y, phi = q[0], q[1], q[2]
         # theta1, theta2, theta3, theta4 = q[3], q[4], q[5], q[6]
@@ -82,8 +84,8 @@ class QuadrupedSimulator:
 
         # === Update body polygon ===
         cx, cy, phi = fk.CoM_x, fk.CoM_y, q[2]
-        L = this.L
-        h = this.h
+        L = self.robot.get_L()
+        h = self.robot.h
 
         # Define local corners (rectangle centered at origin)
         half_L = L / 2
@@ -102,32 +104,32 @@ class QuadrupedSimulator:
         ])
         rotated_corners = corners @ rot.T + np.array([cx, cy])
 
-        # Update polygon shape (just this line is enough)
-        this.body_patch.set_xy(rotated_corners)
+        # Update polygon shape (just self line is enough)
+        self.body_patch.set_xy(rotated_corners)
 
-        this.com_plot.set_data([fk.CoM_x], [fk.CoM_y])
+        self.com_plot.set_data([fk.CoM_x], [fk.CoM_y])
 
-        this.shoulder_plots.set_data(
+        self.shoulder_plots.set_data(
             [fk.front_shoulder_x, fk.rear_shoulder_x],
             [fk.front_shoulder_y, fk.rear_shoulder_y]
         )
 
-        this.knee_plots.set_data(
+        self.knee_plots.set_data(
             [fk.front_knee_x, fk.rear_knee_x],
             [fk.front_knee_y, fk.rear_knee_y]
         )
 
-        this.ankle_plots.set_data(
+        self.ankle_plots.set_data(
             [fk.front_ankle_x, fk.rear_ankle_x],
             [fk.front_ankle_y, fk.rear_ankle_y]
         )
         # Shoulder → Knee → Ankle for both legs
-        this.link_lines_front.set_data(
+        self.link_lines_front.set_data(
             [fk.front_shoulder_x, fk.front_knee_x, fk.front_ankle_x],
             [fk.front_shoulder_y, fk.front_knee_y, fk.front_ankle_y]
         )
 
-        this.link_lines_rear.set_data(
+        self.link_lines_rear.set_data(
             [fk.rear_shoulder_x, fk.rear_knee_x, fk.rear_ankle_x],
             [fk.rear_shoulder_y, fk.rear_knee_y, fk.rear_ankle_y]
         )
@@ -138,12 +140,12 @@ class QuadrupedSimulator:
         #     GRF1_x, GRF1_y, GRF2_x, GRF2_y = u[:4] * force_scale
 
         #     if grf:
-        #         this.force_lines_front.set_data(
+        #         self.force_lines_front.set_data(
         #             [fk.front_ankle_x, fk.front_ankle_x + GRF1_x],
         #             [fk.front_ankle_y, fk.front_ankle_y + GRF1_y]
         #         )
 
-        #         this.force_lines_rear.set_data(
+        #         self.force_lines_rear.set_data(
         #             [fk.rear_ankle_x, fk.rear_ankle_x + GRF2_x],
         #             [fk.rear_ankle_y, fk.rear_ankle_y + GRF2_y]
         #         )
@@ -152,12 +154,25 @@ class QuadrupedSimulator:
         #     x_traj, y_traj = q_trajectory[0], q_trajectory[1]
             
         #     if trajectory_line:
-        #         this.q_trajectory.set_data(x_traj, y_traj)
+        #         self.q_trajectory.set_data(x_traj, y_traj)
         
         # if timer: 
         #     if time is not None:
-        #         this.timer_text.set_text(f"Time: {time:.2f} s")
+        #         self.timer_text.set_text(f"Time: {time:.2f} s")
 
         plt.draw()
 
 
+# def user_output_preferences(show_grf_output):
+#     # Output for the ground reaction forces
+#     if show_grf_output:
+#         print("GRF over time:")
+
+#         for i in range (N - 1):
+#             t = time_array[i]
+#             F1x = U_sol[0, i]
+#             F1y = U_sol[1, i]
+#             F2x = U_sol[2, i]
+#             F2y = U_sol[3, i]
+
+#             print(f"Time: {t:0.3f}s - F1x: {F1x: .3f}N, F1y: {F1y: .3f}N, F2x: {F2x: .3f}N, F2y: {F2y: .3f}N")

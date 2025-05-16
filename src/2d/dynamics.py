@@ -3,8 +3,9 @@
 
 import numpy as np
 
-from robot import m, g, I_z
+# from robot import m, g, I_z
 from kinematics import forward_kinematics
+from robot import robot
 
 
 def euler_integrate(q, v, u, dt):
@@ -27,8 +28,8 @@ def euler_integrate(q, v, u, dt):
     theta4_next = theta4 + dtheta4 * dt
 
     # Translational acceleration using newton's law
-    ax = (GRF1_x + GRF2_x) / m
-    ay = (GRF1_y + GRF2_y) / m - g 
+    ax = (GRF1_x + GRF2_x) / robot.get_m()
+    ay = (GRF1_y + GRF2_y) / robot.get_m() - robot.g
 
     fk = forward_kinematics(q)
 
@@ -41,7 +42,7 @@ def euler_integrate(q, v, u, dt):
     # net torque from the point force, GRF1 and FRF2.
     torque = (-GRF1_x * rfront_y + GRF1_y * rfront_x) + (-GRF2_x * rrear_y + GRF2_y * rrear_x)
     # angular acc
-    alpha = torque / I_z
+    alpha = torque / robot.I_z
 
     vx_next = vx + ax * dt
     vy_next = vy + ay * dt

@@ -5,7 +5,7 @@
 import numpy as np
 from collections import namedtuple
 
-from robot import L, leg_length
+from robot import Robot, robot
 
 
 # kinematics output structure 
@@ -52,14 +52,14 @@ def forward_kinematics(q):
     theta1_front = q[3]
     theta2_front = q[4]
 
-    front_shoulder_x = joint_positions["CoM_x"] + L / 2 * cos(phi)
-    front_shoulder_y = joint_positions["CoM_y"] + L / 2 * sin(phi)
+    front_shoulder_x = joint_positions["CoM_x"] + robot.get_L() / 2 * cos(phi)
+    front_shoulder_y = joint_positions["CoM_y"] + robot.get_L() / 2 * sin(phi)
 
-    front_knee_x = front_shoulder_x + leg_length * cos(phi - pi() / 2 + theta1_front)
-    front_knee_y = front_shoulder_y + leg_length * sin(phi - pi() / 2 + theta1_front)
+    front_knee_x = front_shoulder_x + robot.get_leg_length() * cos(phi - pi() / 2 + theta1_front)
+    front_knee_y = front_shoulder_y + robot.get_leg_length() * sin(phi - pi() / 2 + theta1_front)
 
-    front_ankle_x = front_knee_x + leg_length * cos(phi - pi() / 2 + theta1_front + theta2_front)
-    front_ankle_y = front_knee_y + leg_length * sin(phi - pi() / 2 + theta1_front + theta2_front)
+    front_ankle_x = front_knee_x + robot.get_leg_length() * cos(phi - pi() / 2 + theta1_front + theta2_front)
+    front_ankle_y = front_knee_y + robot.get_leg_length() * sin(phi - pi() / 2 + theta1_front + theta2_front)
 
     joint_positions["front_shoulder_x"] = front_shoulder_x
     joint_positions["front_shoulder_y"] = front_shoulder_y
@@ -72,14 +72,14 @@ def forward_kinematics(q):
     theta1_rear = q[5]
     theta2_rear = q[6]
 
-    rear_shoulder_x = joint_positions["CoM_x"] + -L / 2 * cos(phi)
-    rear_shoulder_y = joint_positions["CoM_y"] + -L / 2 * sin(phi)
+    rear_shoulder_x = joint_positions["CoM_x"] + -robot.get_L() / 2 * cos(phi)
+    rear_shoulder_y = joint_positions["CoM_y"] + -robot.get_L() / 2 * sin(phi)
 
-    rear_knee_x = rear_shoulder_x + leg_length * cos(phi - pi() / 2 + theta1_rear)
-    rear_knee_y = rear_shoulder_y + leg_length * sin(phi - pi() / 2 + theta1_rear)
+    rear_knee_x = rear_shoulder_x + robot.get_leg_length() * cos(phi - pi() / 2 + theta1_rear)
+    rear_knee_y = rear_shoulder_y + robot.get_leg_length() * sin(phi - pi() / 2 + theta1_rear)
 
-    rear_ankle_x = rear_knee_x + leg_length * cos(phi - pi() / 2 + theta1_rear + theta2_rear)
-    rear_ankle_y = rear_knee_y + leg_length * sin(phi - pi() / 2 + theta1_rear + theta2_rear)
+    rear_ankle_x = rear_knee_x + robot.get_leg_length() * cos(phi - pi() / 2 + theta1_rear + theta2_rear)
+    rear_ankle_y = rear_knee_y + robot.get_leg_length() * sin(phi - pi() / 2 + theta1_rear + theta2_rear)
 
     joint_positions["rear_shoulder_x"] = rear_shoulder_x
     joint_positions["rear_shoulder_y"] = rear_shoulder_y
@@ -93,4 +93,13 @@ def forward_kinematics(q):
 
 # q = np.array([1,2,3,1,1,1,1])
 
+# print(forward_kinematics(q))
+
+# ROBOT_MASS = 32.7 
+# ROBOT_BODY_LENGTH = 1.1
+# ROBOT_BODY_HEIGHT = 0.1
+# ROBOT_LEG_LENGTH = 0.4
+
+# robot = Robot(ROBOT_MASS, ROBOT_BODY_LENGTH, ROBOT_BODY_HEIGHT, ROBOT_LEG_LENGTH)
+# q = np.array([1,2,3,1,1,1,1])
 # print(forward_kinematics(q))

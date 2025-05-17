@@ -9,12 +9,20 @@ from robot import Robot, robot
 
 
 class QuadrupedSimulator:
-    def __init__(self, robot, figax=None):
-        # self.L = L
-        # self.leg_length = leg_length
-        # self.h = h
+    def __init__(self, robot, user, figax=None):
 
         self.robot = robot
+
+        # user preferences for sim
+        USER_SHOW_TRAJ_LINE = user[0]
+        USER_SHOW_FIXED_GROUND = user[1]
+        USER_SHOW_GRF = user[2]
+        USER_SHOW_TIMER = user[3]
+
+        self.show_traj_line = USER_SHOW_FIXED_GROUND
+        self.show_fixed_ground = USER_SHOW_FIXED_GROUND
+        self.show_grf = USER_SHOW_GRF
+        self.show_timer = USER_SHOW_TIMER
 
         # Initialize the plot and axis
         if figax is None:
@@ -26,54 +34,22 @@ class QuadrupedSimulator:
         self.ax.set_aspect("equal")
         self.ax.set_xlim(-2.0, 4.5)
         self.ax.set_ylim(-1.0, 4.0)
+        
+        self.draw_robot()
 
-        # Rectangle for body
-        self.body_patch = patches.Polygon([[0, 0], [0, 0], [0, 0], [0, 0]], closed=True, color="#5FB257", alpha=0.5)
-        self.ax.add_patch(self.body_patch)
+        if USER_SHOW_TRAJ_LINE:
+            self.draw_traj_line()
+        
+        self.draw_ground(USER_SHOW_FIXED_GROUND)
 
-        # CoM marker
-        (self.com_plot,) = self.ax.plot([], [], "ko", markersize=3, label="CoM")
+        if USER_SHOW_GRF:
+            self.draw_grf()
 
-        # Joint markers
-        (self.shoulder_plots,) = self.ax.plot([], [], "o", markersize=3, markerfacecolor='white', markeredgecolor='blue')
-        (self.knee_plots,) = self.ax.plot([], [], "o", markersize=3, markerfacecolor='white', markeredgecolor='blue')
-        (self.ankle_plots,) = self.ax.plot([], [], "o", markersize=3, markerfacecolor='white', markeredgecolor='blue')
-
-        # Leg lines
-        (self.link_lines_front,) = self.ax.plot([], [], "k-", linewidth=2)
-        (self.link_lines_rear,) = self.ax.plot([], [], "k-", linewidth=2)
-
-        # # GRFs
-        # if grf:
-        #     (self.force_lines_front,) = self.ax.plot([], [], "r-", linewidth=1)
-        #     (self.force_lines_rear,) = self.ax.plot([], [], "r-", linewidth=1)
-
-        # # Trajectory line
-        # if trajectory_line:
-        #     (self.q_trajectory,) = self.ax.plot([], [], "k--", lw=1, alpha=0.5)
-
-        # Draw ground line
-        self.ax.plot([-3.0, 5.0], [0, 0], "k-", linewidth=1)
-
-        # # Timer
-        # if timer:
-        #     self.timer_text = self.ax.text(
-        #         0.5, 1.02,                  # x and y in axis coordinates (top-center, a bit above)
-        #         "Time: 0.00 s",             # Initial text
-        #         transform=self.ax.transAxes,
-        #         ha="center", va="bottom", fontsize=10, color="black", fontweight="bold"
-        #     )
-
-        # if fixed_ground: 
-        #     x_start = -3.0
-        #     x_end = 5.0
-        #     spacing = 0.2
-        #     length = 0.2
-        #     x_vals = np.arange(x_start, x_end, spacing)
-        #     for x in x_vals:
-        #         self.ax.plot([x + length, x], [-0.01, -0.05 - length], "k-", linewidth=1)
-
-    def set_data(self, q, u=None, q_trajectory=None, time=None):
+        if USER_SHOW_TIMER:
+            self.draw_timer()
+        
+    
+    def update_data(self, q, u=None):
 
         # self manual calibration of self local dependency is no longer used due to redundancy reason.
         # Robot coordinates
@@ -134,33 +110,77 @@ class QuadrupedSimulator:
             [fk.rear_shoulder_y, fk.rear_knee_y, fk.rear_ankle_y]
         )
 
-        # if u is not None:
+        if u is not None and self.show_grf:
+            force_scale = 1/300
+            GRF1_x, GRF1_y, GRF2_x, GRF2_y = u[:4] * force_scale
 
-        #     force_scale = 1/300
-        #     GRF1_x, GRF1_y, GRF2_x, GRF2_y = u[:4] * force_scale
+            self.force_lines_front.set_data(
+                [fk.front_ankle_x, fk.front_ankle_x + GRF1_x],
+                [fk.front_ankle_y, fk.front_ankle_y + GRF1_y]
+            )
 
-        #     if grf:
-        #         self.force_lines_front.set_data(
-        #             [fk.front_ankle_x, fk.front_ankle_x + GRF1_x],
-        #             [fk.front_ankle_y, fk.front_ankle_y + GRF1_y]
-        #         )
+            self.force_lines_rear.set_data(
+                [fk.rear_ankle_x, fk.rear_ankle_x + GRF2_x],
+                [fk.rear_ankle_y, fk.rear_ankle_y + GRF2_y]
+            )
 
-        #         self.force_lines_rear.set_data(
-        #             [fk.rear_ankle_x, fk.rear_ankle_x + GRF2_x],
-        #             [fk.rear_ankle_y, fk.rear_ankle_y + GRF2_y]
-        #         )
-
-        # if q_trajectory is not None:
-        #     x_traj, y_traj = q_trajectory[0], q_trajectory[1]
+        if q_trajectory is not None:
+            x_traj, y_traj = q_trajectory[0], q_trajectory[1]
             
-        #     if trajectory_line:
-        #         self.q_trajectory.set_data(x_traj, y_traj)
+            if trajectory_line:
+                self.q_trajectory.set_data(x_traj, y_traj)
         
-        # if timer: 
-        #     if time is not None:
-        #         self.timer_text.set_text(f"Time: {time:.2f} s")
+        if self.show_timer:
+            self.timer_text.set_text(f"Time: {time:.2f} s")
 
         plt.draw()
+    
+    def draw_robot(self):
+         # Rectangle for body
+        self.body_patch = patches.Polygon([[0, 0], [0, 0], [0, 0], [0, 0]], closed=True, color="#5FB257", alpha=0.5)
+        self.ax.add_patch(self.body_patch)
+
+        # CoM marker
+        (self.com_plot,) = self.ax.plot([], [], "ko", markersize=3, label="CoM")
+
+        # Joint markers
+        (self.shoulder_plots,) = self.ax.plot([], [], "o", markersize=3, markerfacecolor='white', markeredgecolor='blue')
+        (self.knee_plots,) = self.ax.plot([], [], "o", markersize=3, markerfacecolor='white', markeredgecolor='blue')
+        (self.ankle_plots,) = self.ax.plot([], [], "o", markersize=3, markerfacecolor='white', markeredgecolor='blue')
+
+        # Leg lines
+        (self.link_lines_front,) = self.ax.plot([], [], "k-", linewidth=2)
+        (self.link_lines_rear,) = self.ax.plot([], [], "k-", linewidth=2)
+
+        
+    def draw_traj_line(self):
+        (self.q_trajectory,) = self.ax.plot([], [], "k--", lw=1, alpha=0.5)
+
+    
+    def draw_ground(self, fixed):
+        if fixed:
+            x_start = -3.0
+            x_end = 5.0
+            spacing = 0.2
+            length = 0.2
+            x_vals = np.arange(x_start, x_end, spacing)
+            for x in x_vals:
+                self.ax.plot([x + length, x], [-0.01, -0.05 - length], "k-", linewidth=1)
+
+        self.ax.plot([-3.0, 5.0], [0, 0], "k-", linewidth=1)
+
+
+    def draw_grf(self):
+        (self.force_lines_front,) = self.ax.plot([], [], "r-", linewidth=1)
+        (self.force_lines_rear,) = self.ax.plot([], [], "r-", linewidth=1)
+
+    def draw_timer(self):
+        self.timer_text = self.ax.text(
+            0.5, 1.02,                  # x and y in axis coordinates (top-center, a bit above)
+            "Time: 0.00 s",             # Initial text
+            transform=self.ax.transAxes,
+            ha="center", va="bottom", fontsize=10, color="black", fontweight="bold"
+        )
 
 
 # def user_output_preferences(show_grf_output):

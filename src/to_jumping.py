@@ -376,7 +376,7 @@ class QuadrupedSimulator:
             [fk.rear_shoulder_y, fk.rear_knee_y, fk.rear_ankle_y]
         )
 
-        if u is not None:
+        if u is not None: 
 
             force_scale = 1/300
             GRF1_x, GRF1_y, GRF2_x, GRF2_y = u[:4] * force_scale

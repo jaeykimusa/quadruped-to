@@ -41,7 +41,7 @@ show_fixed_ground = True
 show_grf = True
 show_timer = True
 
-user_sim = [show_traj_line, show_fixed_ground, show_timer]
+user_sim = [show_traj_line, show_fixed_ground, show_grf, show_timer]
 
 # User preferences for output
 SHOW_GRF_OUTPUT = True

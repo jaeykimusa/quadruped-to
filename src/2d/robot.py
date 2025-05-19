@@ -29,7 +29,7 @@ class Robot:
         # dimensions
         self.n_q = 7 # 7 dof
         self.n_v = 3 # spatial velocity
-        self.n_u = 8 # 4 ground reaction forces + 4 joint velocities
+        self.n_u = 8 # control input vector: 4 ground reaction forces + 4 joint torques (velocities)
     
     def get_m(self):
         return self.m

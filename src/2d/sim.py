@@ -9,13 +9,44 @@ from vis import QuadrupedSimulator
 from kinematics import forward_kinematics
 import casadi as ca
 import numpy as np
-import matplotlib.pyplot as plt
-import matplotlib.animation as animation
 
 
+
+# initial state
+q_initial = np.array([0.0, 0.6, 0, -1, 1.4, -1, +1.4])
+v_initial = np.array([0, 0, 0])
+
+# final state
+q_final = np.array([2.5, 0.6, 0, -1, 1.4, -1, +1.4])
+v_final = np.array([0, 0, 0])
+
+# user preferences
+user_prefs = {
+    "visualization": {
+        "show_trajectory": True,
+        "show_fixed_ground_plane": True,
+        "show_grf": True,
+        "show_simulation_timer": True
+    },
+    "data_output": {
+        "export_grf_data": False
+    },
+    "plot_settings": {
+        "plot_pitch_angle": False,
+        "plot_grf_over_time": False,
+        "plot_joint_torque": False
+    },
+    "export_settings": {
+        "save_animated_gifs": True
+    }
+}
 
 dt = 0.02
 N = 100
+
+
+# cost function
+cost_func = 0
 
 
 # Cost function weights of corresponding elements
@@ -23,32 +54,6 @@ JOINT_ANGLE_PENALTY_WEIGHT = 1
 JOINT_VELOCITY_PENALTY_WEIGHT = 1
 GRF_PENALTY_WEIGHT = 0.001
 BODY_ORIENTATION_PENALTY_WEIGHT = 0.001
-cost = 0
-
-
-# Create state vector [x, y, phi, theta1-4]
-q_initial = np.array([0.0, 0.5, 0, -1, 1.4, -1, +1.4])
-v_initial = np.array([0, 0, 0])
-
-# Forward jump
-q_final = np.array([2.5, 0.5, 0, -1, 1.4, -1, +1.4])
-v_final = np.array([0, 0, 0])
-
-
-# User preferences for sim
-show_traj_line = True
-show_fixed_ground = True
-show_grf = True
-show_timer = True
-
-user_sim = [show_traj_line, show_fixed_ground, show_grf, show_timer]
-
-# User preferences for output
-SHOW_GRF_OUTPUT = True
-show_pitch_angle_over_time_plot = False
-
-# User preferences for downloads
-save_gifs = False
 
 
 q = ca.SX.sym("q", robot.n_q)
@@ -141,87 +146,99 @@ for k in range(N - 1):
     uppder_bounds = [np.pi / 2] * 4
     apply_joint_limits(opti, q_angles_diff, lower_bounds, uppder_bounds)
 
-    cost += JOINT_ANGLE_PENALTY_WEIGHT * ca.dot(q_angles_diff, q_angles_diff)
+    cost_func += JOINT_ANGLE_PENALTY_WEIGHT * ca.dot(q_angles_diff, q_angles_diff)
     uext = U[:4, k]
-    cost += GRF_PENALTY_WEIGHT * ca.dot(uext, uext)
+    cost_func += GRF_PENALTY_WEIGHT * ca.dot(uext, uext)
     uext = U[4:, k]
-    cost += JOINT_VELOCITY_PENALTY_WEIGHT  * ca.dot(uext, uext)
+    cost_func += JOINT_VELOCITY_PENALTY_WEIGHT  * ca.dot(uext, uext)
 
     phi = Q[2, k]
 
     omega = k / N
 
-    cost += BODY_ORIENTATION_PENALTY_WEIGHT * (phi - (q_initial[2] + omega * (q_final[2] - q_initial[2]))) ** 2
+    cost_func += BODY_ORIENTATION_PENALTY_WEIGHT * (phi - (q_initial[2] + omega * (q_final[2] - q_initial[2]))) ** 2
 
-opti.minimize(cost)
+opti.minimize(cost_func)
 
-# Solve to using ipopt
+# intial guess
 initial_guess(opti, Q, V, U, q_initial, q_final, v_initial, v_final, robot.get_m(), robot.g, N, is_contact)
+
+# solve via ipopt
 opti.solver("ipopt")
-U_sol = opti.solve().value(U)
+
+# full optimized trajectory
 Q_sol = opti.solve().value(Q)
+V_sol = opti.solve().value(V)
+U_sol = opti.solve().value(U)
+
+# print("Shape:", Q_sol.shape)
+# print("Shape:", V_sol.shape)
+# print("Shape:", U_sol.shape)
 
 
 # Outputs for user preferences
 # user_output_preferences(SHOW_GRF_OUTPUT)
 
 
-if SHOW_GRF_OUTPUT:
-        print("GRF over time:")
+# if SHOW_GRF_OUTPUT:
+#         print("GRF over time:")
 
-        for i in range (N - 1):
-            t = time_array[i]
-            F1x = U_sol[0, i]
-            F1y = U_sol[1, i]
-            F2x = U_sol[2, i]
-            F2y = U_sol[3, i]
+#         for i in range (N - 1):
+#             t = time_array[i]
+#             F1x = U_sol[0, i]
+#             F1y = U_sol[1, i]
+#             F2x = U_sol[2, i]
+#             F2y = U_sol[3, i]
 
-            print(f"Time: {t:0.3f}s - F1x: {F1x: .3f}N, F1y: {F1y: .3f}N, F2x: {F2x: .3f}N, F2y: {F2y: .3f}N")
+#             print(f"Time: {t:0.3f}s - F1x: {F1x: .3f}N, F1y: {F1y: .3f}N, F2x: {F2x: .3f}N, F2y: {F2y: .3f}N")
 
 
 
 # Simulation
-
-visualizer = QuadrupedSimulator(robot, user_sim)
-visualizer.update_data(Q_sol[:, -1], None, Q_sol[:2, :-1])
-
-def animate(i):
-    t = i * dt
-    visualizer.update_data(Q_sol[:, i], None if i == N - 1 else U_sol[:, i], Q_sol[:2, :i], time=t)
-    return (visualizer.ax,)
+sim = QuadrupedSimulator(robot, Q_sol, V_sol, U_sol, dt, N, user_prefs)
+sim.simulate()
+sim.export("jumpjumpjump_test.gif")
 
 
-real_duration = N * dt # E.g., 100 * 0.02 = 2.0 seconds
-fps = int(1 / dt) # E.g., 1 / 0.02 = 50 FPS
-interval_ms = dt * 1000 # 0.02 * 1000 = 20 milliseconds
+# visualizer.set_grf_factor(300) # scaling factor for large magnitude of grf
 
-anim = animation.FuncAnimation(
-    visualizer.fig, 
-    animate, 
-    frames=N, 
-    interval=interval_ms, 
-    blit=False
-)
+# if show_pitch_angle_over_time_plot:
+#     x_time_array = np.linspace(0, dt * Q_sol.shape[1], Q_sol.shape[1])
+#     y_pitch_angle = np.rad2deg(Q_sol[2, :])
 
-if show_pitch_angle_over_time_plot:
-    x_time_array = np.linspace(0, dt * Q_sol.shape[1], Q_sol.shape[1])
-    y_pitch_angle = np.rad2deg(Q_sol[2, :])
+#     plt.figure(figsize=(8, 4))
+#     plt.plot(x_time_array, y_pitch_angle, label='Pitch Angle (rad)', color='blue')
+#     plt.title("Pitch Angle Over Time")
+#     plt.xlabel("Time (s)")
+#     plt.ylabel("Pitch Angle (deg)")
+#     plt.grid(True)
+#     plt.legend()
+#     plt.tight_layout()
+#     plt.show()
 
-    plt.figure(figsize=(8, 4))
-    plt.plot(x_time_array, y_pitch_angle, label='Pitch Angle (rad)', color='blue')
-    plt.title("Pitch Angle Over Time")
-    plt.xlabel("Time (s)")
-    plt.ylabel("Pitch Angle (deg)")
-    plt.grid(True)
-    plt.legend()
-    plt.tight_layout()
-    plt.show()
-
-    # plt.savefig("location/title.png")
+#     # plt.savefig("location/title.png")
 
 
-plt.show()
+# # User preferences for vis
+# show_trajectory = True          # was show_traj_line
+# show_ground_plane = True        # was show_fixed_ground
+# show_ground_reaction_forces = True  # was show_grf
+# show_simulation_timer = True    # was show_timer
+# vis_prefs = [show_trajectory, show_ground_plane, show_ground_reaction_forces, show_simulation_timer]
 
 
-if save_gifs:
-    anim.save("../assets/sim_gifs/to_jumping_sim_py_test.gif", writer="pillow", fps=fps)
+# # user preferences for data output
+# export_grf_data = False         # was show_grf_output
+# output_prefs = [export_grf_data]
+
+# # user preferences for plot
+# plot_pitch_angle = False
+# plot_grf_over_time = False
+# plot_joint_torque = False
+# plot_prefs = [plot_pitch_angle, plot_grf_over_time, plot_joint_torque]
+
+# # User preferences for downloads
+# save_animated_gifs = False      # was save_gifs
+# save_prefs = [save_animated_gifs]
+
+# user_prefs = [vis_prefs, output_prefs, plot_prefs, save_prefs]

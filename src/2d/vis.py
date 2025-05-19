@@ -3,26 +3,39 @@
 
 from matplotlib import patches
 import matplotlib.pyplot as plt
+import matplotlib.animation as animation
+
 import numpy as np
 from kinematics import forward_kinematics
 from robot import Robot, robot
+from math_utils import *
+import os
 
 
 class QuadrupedSimulator:
-    def __init__(self, robot, user, figax=None):
+    def __init__(self, robot, Q, V, U, dt, N, user_prefs, figax=None):
 
         self.robot = robot
+        
+        self.Q = Q
+        self.V = V
+        self.U = U
 
-        # user preferences for sim
-        USER_SHOW_TRAJ_LINE = user[0]
-        USER_SHOW_FIXED_GROUND = user[1]
-        USER_SHOW_GRF = user[2]
-        USER_SHOW_TIMER = user[3]
+        self.dt = dt
+        self.N = N
 
-        self.show_traj_line = USER_SHOW_FIXED_GROUND
-        self.show_fixed_ground = USER_SHOW_FIXED_GROUND
-        self.show_grf = USER_SHOW_GRF
-        self.show_timer = USER_SHOW_TIMER
+
+        self.time_duration = N * dt # total simulation time in seconds. E.g., 100 * 0.02 = 2.0 seconds
+        self.fps = int(1 / dt) # frames per second. E.g., 1 / 0.02 = 50 FPS
+        self.interval_ms = dt * 1000 # time between frames in milliseconds. ex: 0.02 * 1000 = 20 milliseconds
+
+
+        self.user_prefs = user_prefs
+        self.show_traj = user_prefs["visualization"]["show_trajectory"]
+        self.show_fixed_ground = user_prefs["visualization"]["show_fixed_ground_plane"]
+        self.show_grf = user_prefs["visualization"]["show_grf"]
+        self.show_timer = user_prefs["visualization"]["show_simulation_timer"]
+        self.save_gifs = user_prefs["export_settings"]["save_animated_gifs"]
 
         # Initialize the plot and axis
         if figax is None:
@@ -37,29 +50,32 @@ class QuadrupedSimulator:
         
         self.draw_robot()
 
-        if USER_SHOW_TRAJ_LINE:
+        if self.show_traj:
             self.draw_traj_line()
         
-        self.draw_ground(USER_SHOW_FIXED_GROUND)
+        self.draw_ground(self.show_fixed_ground)
 
-        if USER_SHOW_GRF:
+        if self.show_grf:
             self.draw_grf()
 
-        if USER_SHOW_TIMER:
+        if self.show_timer:
             self.draw_timer()
         
     
-    def update_data(self, q, u=None):
+    def update_data(self, j):
 
         # self manual calibration of self local dependency is no longer used due to redundancy reason.
         # Robot coordinates
         # CoM_x, CoM_y, phi = q[0], q[1], q[2]
         # theta1, theta2, theta3, theta4 = q[3], q[4], q[5], q[6]
 
-        fk = forward_kinematics(q)
+        q_j = self.Q[:,j]
+        u_j = self.getU(j)
+
+        fk = forward_kinematics(q_j)
 
         # === Update body polygon ===
-        cx, cy, phi = fk.CoM_x, fk.CoM_y, q[2]
+        cx, cy, phi = fk.CoM_x, fk.CoM_y, q_j[2]
         L = self.robot.get_L()
         h = self.robot.h
 
@@ -110,9 +126,9 @@ class QuadrupedSimulator:
             [fk.rear_shoulder_y, fk.rear_knee_y, fk.rear_ankle_y]
         )
 
-        if u is not None and self.show_grf:
+        if u_j is not None and self.show_grf:
             force_scale = 1/300
-            GRF1_x, GRF1_y, GRF2_x, GRF2_y = u[:4] * force_scale
+            GRF1_x, GRF1_y, GRF2_x, GRF2_y = u_j[:4] * force_scale
 
             self.force_lines_front.set_data(
                 [fk.front_ankle_x, fk.front_ankle_x + GRF1_x],
@@ -124,17 +140,51 @@ class QuadrupedSimulator:
                 [fk.rear_ankle_y, fk.rear_ankle_y + GRF2_y]
             )
 
-        if q_trajectory is not None:
-            x_traj, y_traj = q_trajectory[0], q_trajectory[1]
-            
-            if trajectory_line:
-                self.q_trajectory.set_data(x_traj, y_traj)
+        if self.show_traj:
+            # x_traj, y_traj = q_j[0], q_j[1]
+
+            # self.q_trajectory.set_data(x_traj, y_traj)
+            # self.q_trajectory.set_data(cx, cy)
+
+            x_traj, y_traj = self.Q[0,:j], self.Q[1, :j]
+            self.q_trajectory.set_data(x_traj, y_traj)
         
         if self.show_timer:
-            self.timer_text.set_text(f"Time: {time:.2f} s")
+            t = j * self.dt
+            self.timer_text.set_text(f"Time: {t:.2f} s")
 
         plt.draw()
-    
+
+
+    def simulate(self):
+        self.anim = animation.FuncAnimation(
+            self.fig, 
+            self.animate, 
+            frames=self.N, 
+            interval=self.interval_ms, 
+            blit=False
+        )
+        plt.show()
+        
+
+    def animate(self, j):
+        self.update_data(j)
+        return (self.ax,)
+
+    def export(self, fileName):
+        if self.save_gifs:
+            print("Saving GIF...")  # Debug
+            output_dir = "../assets/sim_gifs"
+            os.makedirs(output_dir, exist_ok=True)
+
+            output_path = os.path.join(output_dir, "testtesttest.gif")
+
+            if hasattr(self, "anim"):
+                self.anim.save(output_path, writer="pillow", fps=self.fps)
+                print(f"✅ Saved GIF to: {output_path}")
+            else:
+                print("❌ Animation object (`self.anim`) not initialized. Call `simulate()` first.")
+
     def draw_robot(self):
          # Rectangle for body
         self.body_patch = patches.Polygon([[0, 0], [0, 0], [0, 0], [0, 0]], closed=True, color="#5FB257", alpha=0.5)
@@ -174,6 +224,7 @@ class QuadrupedSimulator:
         (self.force_lines_front,) = self.ax.plot([], [], "r-", linewidth=1)
         (self.force_lines_rear,) = self.ax.plot([], [], "r-", linewidth=1)
 
+
     def draw_timer(self):
         self.timer_text = self.ax.text(
             0.5, 1.02,                  # x and y in axis coordinates (top-center, a bit above)
@@ -181,6 +232,14 @@ class QuadrupedSimulator:
             transform=self.ax.transAxes,
             ha="center", va="bottom", fontsize=10, color="black", fontweight="bold"
         )
+
+    def getU(self, j):
+        if j < getMColumn(self.U):
+            return self.U[:, j]
+        else:
+            return None
+
+    
 
 
 # def user_output_preferences(show_grf_output):

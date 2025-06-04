@@ -98,6 +98,3 @@ def rk4_integrate(q, v, u, dt):
     v_next = np.array([vx_next, vy_next, omega_next])
 
     return q_next, v_next
-
-def runge_kutta_4():
-    

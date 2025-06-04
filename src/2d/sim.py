@@ -194,6 +194,61 @@ U_sol = opti.solve().value(U)
 
 
 
+import rerun as rr
+from mpac_rerun.robot_logger import RobotLogger
+rr.init("simple_robot_example", spawn=False)
+robot_logger = RobotLogger.from_zoo("go2")
+
+import time
+current_time = time.time()
+robot_logger.log_initial_state(logtime=current_time)
+
+
+q = np.transpose(Q_sol)
+from scipy.spatial.transform import Rotation as R
+
+print(robot_logger.joint_names)
+
+for i in range(q.shape[0]):
+    q_i = q[i, :]
+    r = R.from_euler("y", -q_i[2], degrees=False).as_quat()  # x, y, z w
+    print(r)
+
+    base_position = [q_i[0], 0, q_i[1]]
+    base_orientation = r
+
+    t3, t4, t1, t2 = q_i[3:]
+    t1, t2, t3, t4 = q_i[3:]
+
+    joint_positions = {
+        "FL_hip_joint" : 0,
+        "FL_thigh_joint" : -t1,
+        "FL_calf_joint" : -t2,
+        "FR_hip_joint" : 0,
+        "FR_thigh_joint" : -t1,
+        "FR_calf_joint" : -t2,
+        "RL_hip_joint" : 0,
+        "RL_thigh_joint" : -t3,
+        "RL_calf_joint" : -t4,
+        "RR_hip_joint" : 0,
+        "RR_thigh_joint" : -t3,
+        "RR_calf_joint" : -t4,
+    }
+
+    robot_logger.log_state(
+        logtime=current_time,
+        base_position=base_position,
+        base_orientation=base_orientation,
+        joint_positions=joint_positions
+    )
+
+    current_time += dt
+
+rr.save("simple_robot.rrd")
+
+exit()
+
+
 # Simulation
 sim = QuadrupedSimulator(robot, Q_sol, V_sol, U_sol, dt, N, user_prefs)
 sim.simulate()

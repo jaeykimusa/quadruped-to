@@ -45,8 +45,8 @@ class QuadrupedSimulator:
         
         # Set plot appearance such size and orientn.
         self.ax.set_aspect("equal")
-        self.ax.set_xlim(-2.0, 4.5)
-        self.ax.set_ylim(-1.0, 4.0)
+        self.ax.set_xlim(-0.5, 4.0)
+        self.ax.set_ylim(-0.5, 4.0)
         
         self.draw_robot()
 

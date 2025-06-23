@@ -15,11 +15,11 @@ import numpy as np
 
 
 # initial state
-q_initial = np.array([0.0, 0.6, 0, -1, 1.4, -1, +1.4])
+q_initial = np.array([0.0, 0.6, 0, -0.785, 1.55, -0.785, 1.55])
 v_initial = np.array([0, 0, 0])
 
 # final state
-q_final = np.array([2.5, 0.6, 0, -1, 1.4, -1, +1.4])
+q_final = np.array([2, 0.6, 0, -0.785, 1.55, -0.785, 1.55])
 v_final = np.array([0, 0, 0])
 
 # user preferences
@@ -173,6 +173,13 @@ Q_sol = opti.solve().value(Q)
 V_sol = opti.solve().value(V)
 U_sol = opti.solve().value(U)
 
+# print(Q_sol)
+# np.savetxt("q_ref.txt", Q_sol, delimiter=',')
+
+
+# exit()
+
+
 # print("Shape:", Q_sol.shape)
 # print("Shape:", V_sol.shape)
 # print("Shape:", U_sol.shape)
@@ -196,59 +203,59 @@ U_sol = opti.solve().value(U)
 
 
 
-import rerun as rr
-from mpac_rerun.robot_logger import RobotLogger
-rr.init("simple_robot_example", spawn=False)
-robot_logger = RobotLogger.from_zoo("go2")
+# import rerun as rr
+# from mpac_rerun.robot_logger import RobotLogger
+# rr.init("simple_robot_example", spawn=False)
+# robot_logger = RobotLogger.from_zoo("go2")
 
-import time
-current_time = time.time()
-robot_logger.log_initial_state(logtime=current_time)
+# import time
+# current_time = time.time()
+# robot_logger.log_initial_state(logtime=current_time)
 
 
-q = np.transpose(Q_sol)
-from scipy.spatial.transform import Rotation as R
+# q = np.transpose(Q_sol)
+# from scipy.spatial.transform import Rotation as R
 
-print(robot_logger.joint_names)
+# print(robot_logger.joint_names)
 
-for i in range(q.shape[0]):
-    q_i = q[i, :]
-    r = R.from_euler("y", -q_i[2], degrees=False).as_quat()  # x, y, z w
-    print(r)
+# for i in range(q.shape[0]):
+#     q_i = q[i, :]
+#     r = R.from_euler("y", -q_i[2], degrees=False).as_quat()  # x, y, z w
+#     print(r)
 
-    base_position = [q_i[0], 0, q_i[1]]
-    base_orientation = r
+#     base_position = [q_i[0], 0, q_i[1]]
+#     base_orientation = r
 
-    t3, t4, t1, t2 = q_i[3:]
-    t1, t2, t3, t4 = q_i[3:]
+#     t3, t4, t1, t2 = q_i[3:]
+#     t1, t2, t3, t4 = q_i[3:]
 
-    joint_positions = {
-        "FL_hip_joint" : 0,
-        "FL_thigh_joint" : -t1,
-        "FL_calf_joint" : -t2,
-        "FR_hip_joint" : 0,
-        "FR_thigh_joint" : -t1,
-        "FR_calf_joint" : -t2,
-        "RL_hip_joint" : 0,
-        "RL_thigh_joint" : -t3,
-        "RL_calf_joint" : -t4,
-        "RR_hip_joint" : 0,
-        "RR_thigh_joint" : -t3,
-        "RR_calf_joint" : -t4,
-    }
+#     joint_positions = {
+#         "FL_hip_joint" : 0,
+#         "FL_thigh_joint" : -t1,
+#         "FL_calf_joint" : -t2,
+#         "FR_hip_joint" : 0,
+#         "FR_thigh_joint" : -t1,
+#         "FR_calf_joint" : -t2,
+#         "RL_hip_joint" : 0,
+#         "RL_thigh_joint" : -t3,
+#         "RL_calf_joint" : -t4,
+#         "RR_hip_joint" : 0,
+#         "RR_thigh_joint" : -t3,
+#         "RR_calf_joint" : -t4,
+#     }
 
-    robot_logger.log_state(
-        logtime=current_time,
-        base_position=base_position,
-        base_orientation=base_orientation,
-        joint_positions=joint_positions
-    )
+#     robot_logger.log_state(
+#         logtime=current_time,
+#         base_position=base_position,
+#         base_orientation=base_orientation,
+#         joint_positions=joint_positions
+#     )
 
-    current_time += dt
+#     current_time += dt
 
-rr.save("simple_robot.rrd")
+# rr.save("simple_robot.rrd")
 
-exit()
+# exit()
 
 
 # Simulation

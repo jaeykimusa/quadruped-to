@@ -45,8 +45,8 @@ class QuadrupedSimulator:
         
         # Set plot appearance such size and orientn.
         self.ax.set_aspect("equal")
-        self.ax.set_xlim(-0.5, 4.0)
-        self.ax.set_ylim(-0.5, 4.0)
+        self.ax.set_xlim(-0.25, 3.0)
+        self.ax.set_ylim(-0.5, 2.0)
         
         self.draw_robot()
 
@@ -174,10 +174,10 @@ class QuadrupedSimulator:
     def export(self, fileName):
         if self.save_gifs:
             print("Saving GIF...")  # Debug
-            output_dir = "../assets/sim_gifs"
+            output_dir = "src/2d"
             os.makedirs(output_dir, exist_ok=True)
 
-            output_path = os.path.join(output_dir, "testtesttest.gif")
+            output_path = os.path.join(output_dir, fileName)
 
             if hasattr(self, "anim"):
                 self.anim.save(output_path, writer="pillow", fps=self.fps)

@@ -12,23 +12,33 @@ from kinematics import forward_kinematics
 import casadi as ca
 import numpy as np
 
+t1 = -0.75
+t2 = 1.35
 
+def getQuickZ(t1, t2):
+    z_body_initial = 0.6
+    q_set = np.array([0.0, z_body_initial, 0, t1, t2, t1, t2])
+    data = forward_kinematics(q_set)
+    z_foot = data[7]
+    return z_body_initial - z_foot
+
+z = getQuickZ(t1, t2)
 
 # initial state
-q_initial = np.array([0.0, 0.6, 0, -0.785, 1.55, -0.785, 1.55])
+q_initial = np.array([0.4, z, 0, t1, t2, t1, t2])
 v_initial = np.array([0, 0, 0])
 
 # final state
-q_final = np.array([2, 0.6, 0, -0.785, 1.55, -0.785, 1.55])
+q_final = np.array([2.4, z, 0, t1, t2, t1, t2])
 v_final = np.array([0, 0, 0])
 
 # user preferences
 user_prefs = {
     "visualization": {
-        "show_trajectory": True,
-        "show_fixed_ground_plane": True,
-        "show_grf": True,
-        "show_simulation_timer": True
+        "show_trajectory": False,
+        "show_fixed_ground_plane": False,
+        "show_grf": False,
+        "show_simulation_timer": False
     },
     "data_output": {
         "export_grf_data": False
@@ -39,7 +49,7 @@ user_prefs = {
         "plot_joint_torque": False
     },
     "export_settings": {
-        "save_animated_gifs": True
+        "save_animated_gifs": False
     }
 }
 
@@ -101,6 +111,11 @@ FLIGHT_END = int(0.75 * N)
 LANDING_START = FLIGHT_END 
 LANDING_END = N
 
+knee_y_fn = get_knee_y_fn()
+min_knee_y_take_off = 0.05  # meters above ground
+min_knee_y_landing = 0.05  # meters above ground
+
+
 for k in range(N - 1):
     
     add_dynamics_constraint(opti, Q, V, U, k, get_next_state)
@@ -113,12 +128,20 @@ for k in range(N - 1):
         add_friction_cone_constraint(opti, U, k, robot.mu, "rear")
         add_contact_constraint(opti, Q, k, q_initial, "rear")
 
+        q_k = Q[:, k]
+        # knee_y = knee_y_fn(q_k)  # shape (2,)
+        opti.subject_to(knee_y_fn(q_k) >= min_knee_y_take_off)
+
     # Phase 2 - Rear feet only
     if REAR_FEET_CONTACT_START <= k < REAR_FEET_CONTACT_END:
         add_zero_force_constraint(opti, U, k, "front")
 
         add_friction_cone_constraint(opti, U, k, robot.mu, "rear")
         add_contact_constraint(opti, Q, k, q_initial, "rear")
+
+        q_k = Q[:, k]
+        # knee_y = knee_y_fn(q_k)  # shape (2,)
+        opti.subject_to(knee_y_fn(q_k) >= min_knee_y_take_off)
 
     # Phase 3 - Flight
     if FLIGHT_START <= k < FLIGHT_END:
@@ -133,6 +156,10 @@ for k in range(N - 1):
 
         add_friction_cone_constraint(opti, U, k, robot.mu, "rear")
         add_contact_constraint(opti, Q, k, q_final, "rear")
+
+        q_k = Q[:, k]
+        # knee_y = knee_y_fn(q_k)  # shape (2,)
+        opti.subject_to(knee_y_fn(q_k) >= min_knee_y_landing)
 
 
 def is_contact(n):
@@ -168,13 +195,15 @@ initial_guess(opti, Q, V, U, q_initial, q_final, v_initial, v_final, robot.get_m
 # solve via ipopt
 opti.solver("ipopt")
 
+sol = opti.solve()
+
 # full optimized trajectory
-Q_sol = opti.solve().value(Q)
-V_sol = opti.solve().value(V)
-U_sol = opti.solve().value(U)
+Q_sol = sol.value(Q)
+V_sol = sol.value(V)
+U_sol = sol.value(U)
 
 # print(Q_sol)
-# np.savetxt("q_ref.txt", Q_sol, delimiter=',')
+# np.savetxt("q_ref_backflip.txt", Q_sol, delimiter=',')
 
 
 # exit()
@@ -259,9 +288,9 @@ U_sol = opti.solve().value(U)
 
 
 # Simulation
-sim = QuadrupedSimulator(robot, Q_sol, V_sol, U_sol, dt, N, user_prefs)
-sim.simulate()
-sim.export("jumpjumpjump_test.gif")
+# sim = QuadrupedSimulator(robot, Q_sol, V_sol, U_sol, dt, N, user_prefs)
+# sim.simulate()
+# sim.export("jumpjumpjump_test.gif")
 
 
 # visualizer.set_grf_factor(300) # scaling factor for large magnitude of grf

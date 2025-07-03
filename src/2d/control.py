@@ -1,6 +1,8 @@
 # control.py
 
 from kinematics import forward_kinematics
+import casadi as ca
+from robot import *
 
 
 def add_friction_cone_constraint(opti, U, k, mu, leg):
@@ -139,7 +141,38 @@ def apply_joint_limits(opti, q_angles_diff, lower_bounds, upper_bounds):
         opti.subject_to(q_angles_diff[i] >= lower_bounds[i])
         opti.subject_to(q_angles_diff[i] <= upper_bounds[i])
 
+def get_knee_y_fn():
+    q = ca.SX.sym("q", 7)
 
+    # Unpack q
+    x, y, phi = q[0], q[1], q[2]
+    theta1_front, theta2_front = q[3], q[4]
+    theta1_rear, theta2_rear = q[5], q[6]
+
+    # Get robot parameters
+    L = robot.get_L()
+    l = robot.get_leg_length()
+
+    # Front knee y
+    front_shoulder_y = y + (L / 2) * ca.sin(phi)
+    front_knee_y = front_shoulder_y + l * ca.sin(phi - ca.pi / 2 + theta1_front)
+
+    # Rear knee y
+    rear_shoulder_y = y - (L / 2) * ca.sin(phi)
+    rear_knee_y = rear_shoulder_y + l * ca.sin(phi - ca.pi / 2 + theta1_rear)
+
+    # Stack into vector
+    knee_y = ca.vertcat(front_knee_y, rear_knee_y)
+
+    return ca.Function("knee_y_fn", [q], [knee_y])
+
+# def apply_minimum_knee_height(opti, Q, k, min_knee_y):
+#     q_k = Q[:, k]
+#     knee_y_fn = get_knee_y_fn(q_k)
+#     knee_y = knee_y_fn(q_k)
+#     opti.subject_to(knee_y >= min_knee_y)
+
+    
 def initial_guess(opti, Q, V, U, q_initial, q_final, v_initial, v_final, m, g, N, contact):
     for i in range(N):
         # to interpolate Q and V
